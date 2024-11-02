@@ -1,0 +1,150 @@
+﻿@page "/categorias"
+@* @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize] *@
+@rendermode InteractiveServer
+@attribute [StreamRendering]
+<h3>Categorías</h3>
+
+@if (ShowForm)
+{
+    @* Formulario para agregar, modificar o eliminar una categoría *@
+    <div class="card">
+        <h5 class="card-header">@Accion categoría</h5>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="nombre" class="form-label">Nombre</label>
+                <input @bind="MiCategoria.Nombre" type="text" class="form-control" id="nombre" placeholder="Nombre de la categoría" disabled="@DisableInputs">
+            </div>
+            @if (Accion != Constants.Acciones.Ver)
+            {
+                <span class="btn btn-primary" @onclick="Aceptar">Aceptar</span>
+            }
+            <span class="btn btn-danger" @onclick="btnCancelarClick">@(Accion != Constants.Acciones.Ver ? "Cancelar" : "Salir")</span>
+        </div>
+    </div>
+}
+else
+{
+    @if (CategoriaList != null)
+    {
+        @* Tabla para mostrar las categorías *@
+        <div class="card mb-3 mt-3">
+            <div class="card-header">
+                <span class="btn btn-success" @onclick="btnAgregarClick">+</span>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Nombre</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (CategoriaList.Count > 0)
+                        {
+                            @foreach (var c in CategoriaList)
+                            {
+                                <tr>
+                                    <th scope="row">@c.Id</th>
+                                    <td>@c.Nombre</td>
+                                    <td>
+                                        <div class="btn-group" role="group" aria-label="Acciones de categoría">
+                                            <span @onclick="() => btnEditarClick(c)" class="btn btn-outline-warning">Editar</span>
+                                            <span @onclick="() => btnEliminarClick(c)" class="btn btn-outline-danger">Eliminar</span>
+                                            <span @onclick="() => btnVerClick(c)" class="btn btn-outline-primary">Ver</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <p>Cargando...</p>
+    }
+}
+
+@code {
+    #region Propiedades del componente Categorias.razor
+    public List<CategoriaDto>? CategoriaList { get; set; }
+    public CategoriaRequest MiCategoria { get; set; } = new();
+    // public CategoriaService categoriaService { get; set; } = new();
+    public string Accion { get; set; } = "Registrar";
+    bool ShowForm = false, DisableInputs = false;
+    #endregion Propiedades del componente Categorias.razor
+
+    #region Métodos del ciclo de vida
+    protected override async Task OnInitializedAsync()
+    {
+        await ConsultarCategorias();
+    }
+    #endregion Métodos del ciclo de vida
+
+    #region Eventos
+    public void btnAgregarClick()
+    {
+        Accion = Constants.Acciones.Registrar;
+        ShowForm = true;
+        DisableInputs = false;
+    }
+    public void btnEditarClick(CategoriaDto dto)
+    {
+        Accion = Constants.Acciones.Modificar;
+        ShowForm = true;
+        DisableInputs = false;
+        MiCategoria = dto.ToRequest();
+    }
+    public void btnEliminarClick(CategoriaDto dto)
+    {
+        Accion = Constants.Acciones.Eliminar;
+        ShowForm = true;
+        DisableInputs = true;
+        MiCategoria = dto.ToRequest();
+    }
+    public void btnVerClick(CategoriaDto dto)
+    {
+        Accion = Constants.Acciones.Ver;
+        ShowForm = true;
+        DisableInputs = true;
+        MiCategoria = dto.ToRequest();
+    }
+    public void btnCancelarClick()
+    {
+        Limpiar();
+    }
+    #endregion Eventos
+
+    #region Métodos
+    async Task ConsultarCategorias()
+    {
+        var result = await categoriaservice.GetAll();
+        if (result.Succesd)
+        {
+            CategoriaList = result.Data?.ToList() ?? new List<CategoriaDto>();
+        }
+    }
+    public void Limpiar()
+    {
+        ShowForm = false;
+        MiCategoria = new();
+    }
+    public async Task Aceptar()
+    {
+        Result r = Accion == Constants.Acciones.Registrar ? await categoriaservice.Create(MiCategoria) :
+                   Accion == Constants.Acciones.Modificar ? await categoriaservice.Update(MiCategoria) :
+                   Accion == Constants.Acciones.Eliminar ? await categoriaservice.Delete(MiCategoria.Id) :
+                   Result.Failure("Acción no soportada");
+        if (r.Succesd)
+        {
+            await ConsultarCategorias();
+            Limpiar();
+        }
+    }
+    #endregion Métodos
+}
